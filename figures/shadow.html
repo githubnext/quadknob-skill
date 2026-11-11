@@ -1,0 +1,29 @@
+<style>
+  /* The surface fills the frame, with the tile in its middle at true size, so it fits any width without scaling. */
+  body { padding: 16px }
+  #surface { position: relative; width: 100%; height: 100%; overflow: hidden; background: color-mix(in oklab, var(--fg) 8%, var(--bg)); border: 1px solid var(--line); border-radius: 8px }
+  #tile { position: absolute; width: 120px; height: 100px; border-radius: 8px; background: var(--bg); border: 1px solid var(--dim) }
+  #tile::after { content: ''; position: absolute; inset: 26px; border-top: 2px solid var(--line); border-bottom: 2px solid var(--line) }
+  svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none }
+</style>
+<div id="surface" role="img" aria-label="Raised tile casting an adjustable shadow with offset, blur and spread guides"><div id="tile"></div><svg id="guides"></svg></div>
+<script>
+  const surface = document.getElementById('surface'), tile = document.getElementById('tile'), guides = document.getElementById('guides')
+  const bound = (name) => bench.params.some((p) => p.name === name)
+  function draw(values) {
+    const v = { x: 12, y: 16, blur: 24, spread: 0, ...values }
+    const cx = Math.round(surface.clientWidth / 2), cy = Math.round(surface.clientHeight / 2)
+    const left = cx - 60, top = cy - 50
+    tile.style.left = `${left}px`
+    tile.style.top = `${top}px`
+    tile.style.boxShadow = `${v.x}px ${v.y}px ${v.blur}px ${v.spread}px rgb(0 0 0 / 0.32)`
+    const x = cx + v.x, y = cy + v.y
+    guides.innerHTML = `
+      ${bound('x') ? `<path d="M${cx},${top - 28}v8M${x},${top - 28}v8M${cx},${top - 24}H${x}" fill="none" stroke="${bench.color('x')}"/>` : ''}
+      ${bound('y') ? `<path d="M${left - 24},${cy}h8M${left - 24},${y}h8M${left - 20},${cy}V${y}" fill="none" stroke="${bench.color('y')}"/>` : ''}
+      ${bound('blur') ? `<circle cx="${x}" cy="${y}" r="${v.blur}" fill="none" stroke="${bench.color('blur')}" stroke-dasharray="2 4"/>` : ''}
+      ${bound('spread') ? `<rect x="${left + v.x - v.spread}" y="${top + v.y - v.spread}" width="${120 + 2 * v.spread}" height="${100 + 2 * v.spread}" rx="${Math.max(0, 8 + v.spread)}" fill="none" stroke="${bench.color('spread')}" stroke-dasharray="5 4"/>` : ''}`
+  }
+  bench.on(draw)
+  addEventListener('resize', () => draw(bench.values))
+</script>

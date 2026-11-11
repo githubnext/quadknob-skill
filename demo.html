@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quadknob</title>
+  <script type="module" src="./quadknob.js"></script>
+  <style>
+    body { margin: 0; padding: 32px 16px 240px; background: #f4f4f1; color: #1b1f24; font: 16px/1.5 system-ui, sans-serif }
+    main { max-width: 760px; margin: 0 auto; display: grid; gap: 40px }
+    h1 { margin: 0 }
+    .cards { display: flex; flex-wrap: wrap; gap: var(--gap, 16px); justify-content: center; padding: 24px; background: white; border-radius: 12px }
+    .card { width: 220px; background: white; border: var(--border, 1px) solid #7b51dc; border-radius: var(--radius, 8px); padding: var(--padding, 16px);
+            box-shadow: 0 8px 24px -4px rgb(0 0 0 / 0.15) }
+    .card h3 { margin: 0 0 4px }
+    .card p { margin: 0; color: #57606a }
+    .button { display: inline-block; padding: 10px 18px; border-radius: 8px; background: #1b1f24; color: white }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Quadknob</h1>
+
+  <section>
+    <p>A panel with a figure. Values land on the cards as custom properties (<code>--radius</code>, …) on <code>.cards</code>.</p>
+    <div class="cards">
+      <div class="card"><h3>Three chords</h3><p>Put up a few obstacles, then spend your effort on what gets through.</p></div>
+      <div class="card"><h3>No hi-hat</h3><p>Pick the four things that matter. Turn them until it looks right.</p></div>
+    </div>
+    <quadknob-panel label="Card frame" figure="frame" target=".cards" params='[
+      {"name": "radius", "label": "Radius", "stops": "radius", "default": 8},
+      {"name": "padding", "label": "Padding", "stops": "spacing", "default": 16, "token": "p-{label}"},
+      {"name": "border", "label": "Border", "min": 0, "max": 8, "unit": "px", "default": 1},
+      {"name": "gap", "label": "Gap", "stops": "spacing", "default": 16, "token": "gap-{label}"}
+    ]'></quadknob-panel>
+  </section>
+
+  <section>
+    <p>A compact strip with no figure, writing a CSS template for the button. The fourth lane is left empty.</p>
+    <p><span class="button">A button</span></p>
+    <quadknob-panel compact label="Button" css=".button { border-radius: {radius}px; padding: {y}px {x}px }" params='[
+      {"name": "radius", "label": "Radius", "stops": "radius", "default": 8},
+      {"name": "y", "label": "Padding Y", "stops": "spacing", "default": 10, "token": "py-{label}"},
+      {"name": "x", "label": "Padding X", "stops": "spacing", "default": 18, "token": "px-{label}"}
+    ]'></quadknob-panel>
+  </section>
+
+  <section>
+    <p>Easing on the marble run; listen for <code>quadknob-change</code> to use the values in script.</p>
+    <quadknob-panel id="easing" label="Easing" figure="curve" params='[
+      {"name": "x1", "label": "X1", "min": 0, "max": 1, "step": 0.01, "default": 0.25},
+      {"name": "y1", "label": "Y1", "min": -1, "max": 2, "step": 0.01, "default": 0.1},
+      {"name": "x2", "label": "X2", "min": 0, "max": 1, "step": 0.01, "default": 0.25},
+      {"name": "y2", "label": "Y2", "min": -1, "max": 2, "step": 0.01, "default": 1}
+    ]'></quadknob-panel>
+    <p><code id="bezier">cubic-bezier(0.25, 0.1, 0.25, 1)</code></p>
+  </section>
+</main>
+
+<quadknob-panel floating label="Page" figure="type" css="body { font-family: '{family}', system-ui, sans-serif; font-size: {size}px; line-height: {leading} }" params='[
+  {"name": "family", "label": "Family", "options": ["system-ui", "Georgia", "Avenir Next", "Menlo"]},
+  {"name": "size", "label": "Size", "stops": "text", "default": 16},
+  {"name": "leading", "label": "Leading", "stops": "leading", "default": 1.5}
+]' style="--qk-figure-height: 180px"></quadknob-panel>
+
+<script type="module">
+  document.getElementById('easing').addEventListener('quadknob-change', (event) => {
+    const { x1, y1, x2, y2 } = event.detail.values
+    document.getElementById('bezier').textContent = `cubic-bezier(${x1}, ${y1}, ${x2}, ${y2})`
+  })
+</script>
+</body>
+</html>

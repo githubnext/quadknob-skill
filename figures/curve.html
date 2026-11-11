@@ -1,0 +1,74 @@
+<style>
+  body { display: flex; align-items: center; justify-content: center; padding: 16px }
+  svg { width: 100%; height: 100%; max-width: 420px; overflow: visible }
+</style>
+<!--
+  Marble run: the easing curve is a ramp on stilts. A marble rides it in eased time, and a flag climbs its pole with
+  the progress. Each handle's x and y are guides in the colours of their knobs.
+-->
+<svg id="figure" viewBox="-30 -80 330 340" role="img" aria-label="A marble on an easing ramp"></svg>
+<script>
+  const S = 200, DURATION = 1600, PAUSE = 400
+  const svg = document.getElementById('figure')
+  const px = (x) => x * S, py = (y) => S - y * S
+  let curve = { x1: 0.25, y1: 0.1, x2: 0.25, y2: 1 }
+
+  // The point on the bezier at parameter s, and the eased progress at time t (solving x(s) = t by bisection).
+  const bezier = (s, a, b) => 3 * (1 - s) ** 2 * s * a + 3 * (1 - s) * s ** 2 * b + s ** 3
+  function ease(t) {
+    let low = 0, high = 1
+    for (let i = 0; i < 30; i++) {
+      const mid = (low + high) / 2
+      if (bezier(mid, curve.x1, curve.x2) < t) low = mid
+      else high = mid
+    }
+    return bezier((low + high) / 2, curve.y1, curve.y2)
+  }
+
+  bench.on((values) => {
+    curve = { ...curve, ...values }
+    const { x1, y1, x2, y2 } = curve
+    const guide = (name, x, y, vertical) => bench.lane(name)
+      ? `<line x1="${px(vertical ? x : 0)}" y1="${py(vertical ? 0 : y)}" x2="${px(x)}" y2="${py(y)}" stroke="${bench.color(name)}" stroke-width="1.5" stroke-dasharray="3 3" />`
+      : ''
+    const path = `M${px(0)},${py(0)}C${px(x1)},${py(y1)} ${px(x2)},${py(y2)} ${px(1)},${py(1)}`
+    // Stilts from the ramp down to the ground, every tenth of the way.
+    const stilts = Array.from({ length: 9 }, (_, i) => {
+      const t = (i + 1) / 10, y = ease(t)
+      return `<line x1="${px(t)}" y1="${py(Math.max(0, Math.min(1, y)))}" x2="${px(t)}" y2="${S + 8}" stroke="var(--line)" />`
+    }).join('')
+    svg.innerHTML = `
+      <line x1="-20" y1="${S + 8}" x2="${S + 60}" y2="${S + 8}" stroke="var(--line)" stroke-width="1.5" />
+      ${stilts}
+      ${guide('x1', x1, y1, true)}${guide('y1', x1, y1, false)}${guide('x2', x2, y2, true)}${guide('y2', x2, y2, false)}
+      <line x1="${px(0)}" y1="${py(0)}" x2="${px(x1)}" y2="${py(y1)}" stroke="var(--dim)" />
+      <line x1="${px(1)}" y1="${py(1)}" x2="${px(x2)}" y2="${py(y2)}" stroke="var(--dim)" />
+      <path d="${path}" fill="none" stroke="var(--fg)" stroke-width="4" stroke-linecap="round" />
+      <path d="${path}" fill="none" stroke="var(--bg)" stroke-width="1.5" stroke-linecap="round" />
+      <circle cx="${px(x1)}" cy="${py(y1)}" r="4" fill="var(--bg)" stroke="var(--fg)" stroke-width="1.5" />
+      <circle cx="${px(x2)}" cy="${py(y2)}" r="4" fill="var(--bg)" stroke="var(--fg)" stroke-width="1.5" />
+      <line x1="${S + 40}" y1="${S + 8}" x2="${S + 40}" y2="${py(1) - 6}" stroke="var(--fg)" stroke-width="1.5" />
+      <path id="flag" d="M0,0h18l-5,6l5,6h-18z" fill="none" stroke="var(--fg)" stroke-width="1.5" stroke-linejoin="round" />
+      <circle id="marble" r="7" fill="var(--bg)" stroke="var(--fg)" stroke-width="1.5" />
+      <path id="shine" d="M-3,-2a4,4 0 0 1 3,-3" fill="none" stroke="var(--fg)" stroke-width="1.5" stroke-linecap="round" />`
+  })
+
+  // Down and up again: the marble runs the curve forwards, rests, then rolls back.
+  function frame(now) {
+    const cycle = now % (2 * (DURATION + PAUSE))
+    const leg = cycle < DURATION + PAUSE ? cycle : cycle - DURATION - PAUSE
+    const forward = cycle < DURATION + PAUSE
+    const t = Math.min(1, leg / DURATION)
+    const time = forward ? t : 1 - t
+    const progress = ease(time)
+    const marble = document.getElementById('marble'), shine = document.getElementById('shine'), flag = document.getElementById('flag')
+    if (marble) {
+      const x = px(time), y = py(progress) - 9
+      marble.setAttribute('transform', `translate(${x},${y})`)
+      shine.setAttribute('transform', `translate(${x},${y})`)
+      flag.setAttribute('transform', `translate(${S + 40},${py(progress) - 6})`)
+    }
+    requestAnimationFrame(frame)
+  }
+  requestAnimationFrame(frame)
+</script>

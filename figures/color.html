@@ -1,0 +1,80 @@
+<style>
+  body { display: flex; align-items: center; justify-content: center; padding: 16px }
+  svg { width: 100%; height: 100%; max-width: 480px; overflow: visible }
+</style>
+<!--
+  Paint shop: a can of the colour, mixed from four things on the shelf. A lamp for lightness, a squeezed tube for
+  chroma, a colour wheel for hue and a jar filling up for alpha, each outlined in the colour of its knob.
+-->
+<svg id="figure" viewBox="0 0 400 230" role="img" aria-label="A can of paint and what it is mixed from"></svg>
+<script>
+  const RANGES = { lightness: [0, 1], chroma: [0, 0.4], hue: [0, 360], alpha: [0, 1] }
+  const svg = document.getElementById('figure')
+  const range = (name) => { const param = bench.params.find((item) => item.name === name); return param ? [param.min, param.max] : RANGES[name] }
+  const share = (name, value) => { const [min, max] = range(name); return (value - min) / (max - min) }
+  const ink = (name) => bench.lane(name) ? bench.color(name) : 'var(--dim)'
+  const line = 'stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"'
+
+  bench.on(({ lightness: l = 0.7, chroma: c = 0.15, hue: h = 250, alpha: a = 1 }) => {
+    const paint = `oklch(${l} ${c} ${h} / ${a})`
+    const solid = `oklch(${l} ${c} ${h})`
+
+    // The can: an open tin full of paint, a drip running over the rim.
+    const can = `
+      <defs><pattern id="check" width="10" height="10" patternUnits="userSpaceOnUse">
+        <rect width="5" height="5" fill="var(--line)" /><rect x="5" y="5" width="5" height="5" fill="var(--line)" />
+      </pattern></defs>
+      <path d="M150,70v110a50,14 0 0 0 100,0V70" fill="url(#check)" opacity="0.5" />
+      <path d="M150,70v110a50,14 0 0 0 100,0V70" fill="${paint}" />
+      <ellipse cx="200" cy="70" rx="50" ry="14" fill="${solid}" stroke="var(--fg)" stroke-width="1.5" />
+      <path d="M150,70v110a50,14 0 0 0 100,0V70" ${line} stroke="var(--fg)" />
+      <path d="M232,80q2,14 0,24a4,4 0 0 0 8,0q-2,-10 0,-26" fill="${solid}" stroke="var(--fg)" stroke-width="1.5" />
+      <path d="M150,70q0,-48 50,-48t50,48" ${line} stroke="var(--fg)" stroke-dasharray="2 4" />
+      <rect x="168" y="118" width="64" height="30" rx="4" fill="var(--bg)" stroke="var(--fg)" stroke-width="1.5" />
+      <path d="M178,128h44M178,138h28" ${line} stroke="var(--dim)" />`
+
+    // Lightness: a lamp, its rays as long as the colour is light.
+    const rays = Array.from({ length: 8 }, (_, i) => {
+      const angle = (i / 8) * Math.PI * 2, inner = 22, outer = 22 + 4 + share('lightness', l) * 18
+      return `<line x1="${Math.cos(angle) * inner}" y1="${Math.sin(angle) * inner}" x2="${Math.cos(angle) * outer}" y2="${Math.sin(angle) * outer}" />`
+    }).join('')
+    const lamp = `<g transform="translate(60,62)" ${line} stroke="${ink('lightness')}">
+      <path d="M-10,8a14,14 0 1 1 20,0v8h-20z" /><path d="M-7,20h14M-5,24h10" />${rays}</g>`
+
+    // Chroma: a tube of paint, rolled up from the end as more is squeezed out.
+    const squeezed = share('chroma', c)
+    const body = 66 - squeezed * 40
+    const blob = 3 + squeezed * 10
+    const tube = `<g transform="translate(22,170)" ${line} stroke="${ink('chroma')}">
+      <path d="M0,-12h${body}l14,6v12l-14,6h-${body}z" />
+      <path d="M${body + 14},-4h6v8h-6" />
+      ${Array.from({ length: Math.round(squeezed * 4) }, (_, i) => `<path d="M${-2 - i * 4},-12v24" />`).join('')}
+      <circle cx="${body + 26 + blob}" cy="0" r="${blob}" fill="${solid}" />
+    </g>`
+
+    // Hue: a colour wheel with its needle on the hue.
+    const wheel = Array.from({ length: 24 }, (_, i) => {
+      const from = (i / 24) * Math.PI * 2 - Math.PI / 2, to = ((i + 1) / 24) * Math.PI * 2 - Math.PI / 2
+      const p = (angle, r) => `${Math.cos(angle) * r},${Math.sin(angle) * r}`
+      return `<path d="M${p(from, 24)}A24,24 0 0 1 ${p(to, 24)}L${p(to, 34)}A34,34 0 0 0 ${p(from, 34)}Z" fill="oklch(${l} ${c} ${(i / 24) * 360})" />`
+    }).join('')
+    const needle = (h / 360) * Math.PI * 2 - Math.PI / 2
+    const hueWheel = `<g transform="translate(340,62)">
+      ${wheel}
+      <circle r="34" fill="none" stroke="var(--fg)" stroke-width="1.5" /><circle r="24" fill="none" stroke="var(--fg)" stroke-width="1.5" />
+      <line x1="0" y1="0" x2="${Math.cos(needle) * 40}" y2="${Math.sin(needle) * 40}" stroke="${ink('hue')}" stroke-width="2.5" stroke-linecap="round" />
+      <circle r="4" fill="${ink('hue')}" />
+    </g>`
+
+    // Alpha: a jar that fills with the colour as it gets more opaque.
+    const level = share('alpha', a) * 52
+    const jar = `<g transform="translate(316,134)">
+      <rect x="2" y="${70 - level}" width="44" height="${level}" fill="${solid}" />
+      <path d="M0,8h48v62a6,6 0 0 1 -6,6h-36a6,6 0 0 1 -6,-6z M-3,0h54v8h-54z" ${line} stroke="${ink('alpha')}" />
+    </g>`
+
+    svg.innerHTML = `
+      <line x1="0" y1="${210}" x2="400" y2="${210}" stroke="var(--line)" stroke-width="1.5" />
+      ${can}${lamp}${tube}${hueWheel}${jar}`
+  })
+</script>

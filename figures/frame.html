@@ -1,0 +1,87 @@
+<style>
+  /* True size when there is room, scaled down to fit the frame's width or height when there is not. */
+  body { display: flex; align-items: center; justify-content: center; padding: 16px }
+  svg { width: 100%; height: 100%; overflow: visible }
+</style>
+<!--
+  Gallery: two framed pictures on a wall. The frame's corners are the radius, its mat the padding, its moulding the
+  border and the space between the two frames the gap, each drawn in the colour of the knob that turns it.
+-->
+<svg id="figure" role="img" aria-label="Two framed pictures on a wall"></svg>
+<script>
+  const DEFAULTS = { radius: 8, padding: 16, border: 1, gap: 8 }
+  const PICTURE = { width: 88, height: 64 }
+  const svg = document.getElementById('figure')
+  const bound = (name) => bench.params.some((param) => param.name === name)
+  const color = (name, fallback = 'var(--line)') => bound(name) ? bench.color(name) : fallback
+
+  const roundRect = (x, y, w, h, r) => {
+    r = Math.max(0, Math.min(r, w / 2, h / 2))
+    return `M${x + r},${y}H${x + w - r}A${r},${r} 0 0 1 ${x + w},${y + r}V${y + h - r}A${r},${r} 0 0 1 ${x + w - r},${y + h}`
+      + `H${x + r}A${r},${r} 0 0 1 ${x},${y + h - r}V${y + r}A${r},${r} 0 0 1 ${x + r},${y}Z`
+  }
+  // The four corners of a box, where its radius shows.
+  const corners = (x, y, w, h, r) => {
+    const k = Math.max(r, 6)
+    return `M${x},${y + k}V${y + r}A${r},${r} 0 0 1 ${x + r},${y}H${x + k}`
+      + `M${x + w - k},${y}H${x + w - r}A${r},${r} 0 0 1 ${x + w},${y + r}V${y + k}`
+      + `M${x + w},${y + h - k}V${y + h - r}A${r},${r} 0 0 1 ${x + w - r},${y + h}H${x + w - k}`
+      + `M${x + k},${y + h}H${x + r}A${r},${r} 0 0 1 ${x},${y + h - r}V${y + h - k}`
+  }
+  // The pictures themselves stay neutral: a mountain under the sun, and a flower in a pot.
+  const mountain = (x, y, w, h) => `
+    <circle cx="${x + w * 0.74}" cy="${y + h * 0.3}" r="${h * 0.11}" fill="none" stroke="var(--dim)" stroke-width="1.5" />
+    <path d="M${x},${y + h}L${x + w * 0.32},${y + h * 0.42}L${x + w * 0.5},${y + h * 0.68}L${x + w * 0.66},${y + h * 0.5}L${x + w},${y + h}"
+      fill="none" stroke="var(--dim)" stroke-width="1.5" stroke-linejoin="round" />`
+  const flower = (x, y, w, h) => {
+    const cx = x + w / 2, top = y + h * 0.3
+    const petals = [0, 72, 144, 216, 288].map((a) => {
+      const r = a * Math.PI / 180
+      return `<circle cx="${cx + Math.cos(r) * 6}" cy="${top + Math.sin(r) * 6}" r="4.5" fill="none" stroke="var(--dim)" stroke-width="1.5" />`
+    }).join('')
+    return `${petals}<circle cx="${cx}" cy="${top}" r="2.5" fill="var(--dim)" />
+      <path d="M${cx},${top + 10}V${y + h * 0.72}M${cx},${y + h * 0.58}q8,-6 12,-2" fill="none" stroke="var(--dim)" stroke-width="1.5" />
+      <path d="M${cx - 11},${y + h * 0.72}h22l-3,${h * 0.2}h-16z" fill="none" stroke="var(--dim)" stroke-width="1.5" stroke-linejoin="round" />`
+  }
+
+  bench.on((values) => {
+    const v = { ...DEFAULTS, ...values }
+    const outerW = PICTURE.width + 2 * (v.padding + v.border), outerH = PICTURE.height + 2 * (v.padding + v.border)
+    const rail = 12, hang = 26, margin = 12
+    const top = rail + hang, floor = top + outerH + 30
+    const width = margin * 2 + outerW * 2 + v.gap
+    svg.setAttribute('viewBox', `0 0 ${width} ${floor + 6}`)
+    // At most true size: the drawing never grows past the pixels it describes.
+    svg.style.maxWidth = `${width}px`
+    svg.style.maxHeight = `${floor + 6}px`
+
+    const frame = (x, picture) => {
+      const r = Math.min(v.radius, outerH / 2), b = v.border, p = v.padding
+      const inner = b + p
+      return `
+        <path d="M${x + outerW / 2},${rail}L${x + outerW * 0.2},${top}M${x + outerW / 2},${rail}L${x + outerW * 0.8},${top}" stroke="var(--dim)" stroke-width="1" fill="none" />
+        <circle cx="${x + outerW / 2}" cy="${rail}" r="2.5" fill="var(--fg)" />
+        <path d="${roundRect(x, top, outerW, outerH, r)}" fill="color-mix(in oklab, var(--fg) 5%, transparent)" />
+        ${bound('padding') ? `<path d="${roundRect(x + b, top + b, outerW - 2 * b, outerH - 2 * b, r - b)} ${roundRect(x + inner, top + inner, PICTURE.width, PICTURE.height, r - inner)}"
+          fill-rule="evenodd" fill="url(#padding-hatch)" />` : ''}
+        <path d="${roundRect(x + inner, top + inner, PICTURE.width, PICTURE.height, Math.max(0, r - inner))}" fill="none" stroke="var(--line)" />
+        ${picture(x + inner + 8, top + inner + 6, PICTURE.width - 16, PICTURE.height - 12)}
+        ${b > 0 ? `<path d="${roundRect(x + b / 2, top + b / 2, outerW - b, outerH - b, r - b / 2)}" fill="none" stroke="${color('border', 'var(--fg)')}" stroke-width="${b}" />` : ''}
+        ${bound('radius') ? `<path d="${corners(x, top, outerW, outerH, r)}" fill="none" stroke="${bench.color('radius')}" stroke-width="2" stroke-linecap="round" />` : ''}`
+    }
+    const left = margin, right = margin + outerW + v.gap
+    // The gap, measured like on a plan: a dimension line between the frames, at true width.
+    const gapY = top + outerH + 14
+    // Transparent pinstripes mark the measured mat, without painting over the specimen.
+    svg.innerHTML = `
+      ${bound('padding') ? `<defs><pattern id="padding-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+        <path d="M0.5,0V6" fill="none" stroke="${bench.color('padding')}" stroke-width="0.75" stroke-opacity="0.65" />
+      </pattern></defs>` : ''}
+      <line x1="0" y1="${rail}" x2="${width}" y2="${rail}" stroke="var(--line)" stroke-width="1.5" />
+      <line x1="0" y1="${floor}" x2="${width}" y2="${floor}" stroke="var(--line)" stroke-width="1.5" />
+      ${frame(left, mountain)}
+      ${frame(right, flower)}
+      ${bound('gap') ? `<path d="M${left + outerW},${gapY - 5}v10M${right},${gapY - 5}v10M${left + outerW},${gapY}H${right}"
+        stroke="${bench.color('gap')}" stroke-width="1.5" fill="none" />` : ''}`
+  })
+</script>

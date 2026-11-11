@@ -1,0 +1,31 @@
+<style>
+  body { padding: 24px; overflow: auto }
+  #container { box-sizing: border-box; border-top: 2px solid; padding-top: 16px }
+  #grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--minimum-size)), 1fr)); background: repeating-linear-gradient(135deg, var(--gap-ink) 0 0.75px, transparent 0.75px 6px) }
+  .card { position: relative; height: 88px; background: var(--bg); border: 1px solid; border-radius: 4px }
+  .card::before { content: ''; position: absolute; left: 0; bottom: 10px; width: var(--minimum-mark); border-top: 2px solid var(--minimum-ink) }
+  .card::after { content: ''; position: absolute; inset: 16px 20% 32px; border: 1px solid var(--line); border-radius: 2px }
+</style>
+<div id="container" role="img" aria-label="Wrapping card grid with minimum-width marks"><div id="grid"></div></div>
+<script>
+  const container = document.getElementById('container'), grid = document.getElementById('grid')
+  const color = (name) => bench.params.some((p) => p.name === name) ? bench.color(name) : 'var(--line)'
+  bench.on((values) => {
+    const v = { width: 560, minimum: 160, gap: 16, count: 6, ...values }
+    container.style.width = `${v.width}px`
+    container.style.borderColor = color('width')
+    grid.style.setProperty('--minimum-size', `${v.minimum}px`)
+    grid.style.setProperty('--minimum-mark', `${Math.min(v.minimum, v.width)}px`)
+    grid.style.setProperty('--minimum-ink', color('minimum'))
+    grid.style.setProperty('--gap-ink', `color-mix(in oklab, ${color('gap')} 65%, transparent)`)
+    grid.style.gap = `${v.gap}px`
+    // Keep the DOM stable for changes other than count.
+    while (grid.children.length > v.count) grid.lastElementChild.remove()
+    while (grid.children.length < v.count) {
+      const card = document.createElement('div')
+      card.className = 'card'
+      grid.append(card)
+    }
+    for (const card of grid.children) card.style.borderColor = color('count')
+  })
+</script>

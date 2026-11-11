@@ -1,0 +1,60 @@
+<style>
+  body { display: grid; place-items: center; padding: 16px; overflow: auto }
+  svg { width: 100%; max-width: 600px; height: auto; flex: none }
+</style>
+<svg viewBox="0 0 600 240" role="img" aria-label="Repeating tile entry and exit above a duration and delay timeline">
+  <path d="M300,44v112" stroke="var(--line)" stroke-dasharray="3 4"/>
+  <path id="travel" fill="none"/>
+  <rect id="tile" x="268" y="64" width="64" height="64" rx="8" fill="var(--bg)" stroke-width="2"/>
+  <g id="timeline"></g>
+  <path id="playhead" d="M0,186v20" stroke="var(--fg)" stroke-width="2"/>
+</svg>
+<script>
+  const tile = document.getElementById('tile'), travel = document.getElementById('travel')
+  const timeline = document.getElementById('timeline'), playhead = document.getElementById('playhead')
+  const color = (name) => bench.params.some((p) => p.name === name) ? bench.color(name) : 'var(--line)'
+  const curves = { linear: [0, 0, 1, 1], ease: [0.25, 0.1, 0.25, 1], 'ease-in': [0.42, 0, 1, 1], 'ease-out': [0, 0, 0.58, 1], 'ease-in-out': [0.42, 0, 0.58, 1] }
+  const bezier = (t, a, b) => 3 * (1 - t) ** 2 * t * a + 3 * (1 - t) * t ** 2 * b + t ** 3
+  let v = { duration: 600, delay: 200, distance: 120, easing: 'ease-out' }, start = null
+  function ease(t) {
+    if (t <= 0 || t >= 1) return t
+    const [x1, y1, x2, y2] = curves[v.easing] || curves.linear
+    let lo = 0, hi = 1
+    for (let i = 0; i < 24; i++) {
+      const mid = (lo + hi) / 2
+      if (bezier(mid, x1, x2) < t) lo = mid
+      else hi = mid
+    }
+    return bezier((lo + hi) / 2, y1, y2)
+  }
+  bench.on((values) => {
+    v = { duration: 600, delay: 200, distance: 120, easing: 'ease-out', ...values }
+    start = null
+    travel.setAttribute('d', `M${300 - v.distance},148v8M${300 + v.distance},148v8M${300 - v.distance},152H${300 + v.distance}`)
+    travel.setAttribute('stroke', color('distance'))
+    tile.setAttribute('stroke', color('easing'))
+    const leg = v.delay + v.duration + 400, total = leg * 2
+    let time = 0
+    // Time spans are area measurements; keep the tile and neutral rest spans as actual fills.
+    const hatches = `<defs>${['delay', 'duration'].map((name) => `<pattern id="${name}-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <path d="M0.5,0V6" fill="none" stroke="${color(name)}" stroke-width="0.75" stroke-opacity="0.65" />
+    </pattern>`).join('')}</defs>`
+    timeline.innerHTML = hatches + [v.delay, v.duration, 400, v.delay, v.duration, 400].map((ms, i) => {
+      const x = 140 + time / total * 320
+      time += ms
+      const ink = i % 3 === 0 ? 'url(#delay-hatch)' : i % 3 === 1 ? 'url(#duration-hatch)' : 'var(--line)'
+      return `<rect x="${x}" y="192" width="${ms / total * 320}" height="8" fill="${ink}"/>`
+    }).join('')
+  })
+  function frame(now) {
+    if (start === null) start = now
+    const leg = v.delay + v.duration + 400, cycle = (now - start) % (leg * 2)
+    const entry = cycle < leg, time = cycle % leg
+    const p = ease(Math.max(0, Math.min(1, (time - v.delay) / v.duration)))
+    tile.setAttribute('transform', `translate(${entry ? -v.distance * (1 - p) : v.distance * p},0)`)
+    tile.setAttribute('opacity', entry ? p : 1 - p)
+    playhead.setAttribute('transform', `translate(${140 + cycle / (leg * 2) * 320},0)`)
+    requestAnimationFrame(frame)
+  }
+  requestAnimationFrame(frame)
+</script>
